@@ -8,6 +8,7 @@ both the desktop GUI (`auraav-gui`) and the CLI (`auraav`).
 | -------- | ---------------------------- | ---------------------------------------------- |
 | Linux    | `packaging/linux/build.sh`   | `.tar.gz`, `.deb`, `.rpm`                       |
 | Windows  | `packaging/windows/build.sh` | `.zip`, `.msi` (cross-built with mingw + wixl)  |
+| macOS    | `packaging/macos/build.sh`   | `.pkg`, `.dmg`, `.tar.gz` (must run on macOS)   |
 
 ## Linux
 
@@ -33,8 +34,27 @@ Cross-compiled from Linux (`rustup target add x86_64-pc-windows-gnu`,
 the data to `Program Files\auraAV`, and adds a **Start Menu shortcut** to the
 GUI. The `.zip` is portable (double-click `auraav-gui.exe`).
 
+## macOS
+
+Built on macOS (`pkgbuild`/`productbuild`/`hdiutil` do not exist on Linux), so
+this runs on a `macos-latest` runner in CI:
+
+```bash
+bash packaging/macos/build.sh
+# -> dist/macos/auraav-<ver>-macos.pkg   (installs auraAV.app + CLI + data)
+# -> dist/macos/auraav-<ver>-macos.dmg   (pkg + double-clickable installer)
+# -> dist/macos/auraav-<ver>-macos.tar.gz (bundled; used by the auto-updater)
+```
+
+The `.pkg` installs `auraAV.app` to `/Applications`, the CLI to
+`/usr/local/bin/auraav`, and signatures to `/usr/local/share/auraav/data`. The
+`.app` is ad-hoc signed (not notarized); on first launch use
+right-click → Open, or
+`xattr -dr com.apple.quarantine /Applications/auraAV.app`.
+
 ## CI
 
-`.github/workflows/release.yml` builds Linux and Windows and attaches the
-artifacts to a GitHub Release when a `v*` tag is pushed (or via
+`.github/workflows/release.yml` builds Linux, Windows and macOS and attaches the
+artifacts (plus stable `auraav-<platform>.*` aliases and a `auraav-data.tar.gz`
+signature pack) to a GitHub Release when a `v*` tag is pushed (or via
 `workflow_dispatch`).

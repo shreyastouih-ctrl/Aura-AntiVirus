@@ -45,6 +45,8 @@ pub fn app_asset_name(version: &str) -> Option<String> {
         Some(format!("auraav-{version}-linux-amd64.tar.gz"))
     } else if cfg!(target_os = "windows") {
         Some(format!("auraav-{version}-win64.zip"))
+    } else if cfg!(target_os = "macos") {
+        Some(format!("auraav-{version}-macos.tar.gz"))
     } else {
         None
     }

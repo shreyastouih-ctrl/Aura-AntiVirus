@@ -56,7 +56,7 @@ Maintainer: Shreyasrasuri <shreyastouih@protonmail.com>
 Section: utils
 Priority: optional
 Homepage: https://github.com/shreyastouih-ctrl/Aura-AntiVirus
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0 | libxkbcommon0
+Depends: libc6, libgcc-s1
 Description: auraAV - offline-first, no-subscription antivirus
  Unified static/heuristic/similarity detection engine with a GUI and a CLI.
 EOF
@@ -81,7 +81,7 @@ Name:           auraav
 Version:        ${ver}
 Release:        1
 Summary:        Offline-first, no-subscription antivirus
-License:        GPL-3.0-only
+License:        LicenseRef-Proprietary
 BuildArch:      x86_64
 AutoReqProv:    no
 

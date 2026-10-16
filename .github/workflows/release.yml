@@ -65,8 +65,23 @@ jobs:
           path: auraav-data.tar.gz
           if-no-files-found: error
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash packaging/macos/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            dist/macos/*.pkg
+            dist/macos/*.dmg
+            dist/macos/*.tar.gz
+          if-no-files-found: error
+
   release:
-    needs: [linux, windows, data-pack]
+    needs: [linux, windows, data-pack, macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -82,6 +97,9 @@ jobs:
           cp linux/*.rpm                       auraav-linux-amd64.rpm
           cp windows/*.zip                     auraav-win64.zip
           cp windows/*.msi                     auraav-win64.msi
+          cp macos/*.dmg                       auraav-macos.dmg
+          cp macos/*.pkg                       auraav-macos.pkg
+          cp macos/*.tar.gz                    auraav-macos.tar.gz
           ls -R .
       - uses: softprops/action-gh-release@v2
         with:

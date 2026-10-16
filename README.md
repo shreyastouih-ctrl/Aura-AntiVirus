@@ -8,7 +8,7 @@ auraAV is a unified multi-engine antivirus built to scan **all threat types at o
 - **Offline-first** - Core detection works without internet. No subscription, no account, no forced cloud lookups
 - **User control** - Quarantine with explicit override to allow genuine files
 - **System integration** - Startup quick scan, external drive detection, real-time monitoring (toggleable)
-- **Cross-platform** - Linux and Windows (desktop GUI + CLI)
+- **Cross-platform** - Linux, Windows and macOS (desktop GUI + CLI)
 - **Easy UI** - Simple interface with transparent detection reasons
 
 ## Download
@@ -22,6 +22,8 @@ your system and run it.
 | --- | --- | --- |
 | **Windows** | Installer | [`auraav-win64.msi`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-win64.msi) |
 | **Windows** | Portable ZIP | [`auraav-win64.zip`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-win64.zip) |
+| **macOS** | Disk image | [`auraav-macos.dmg`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-macos.dmg) |
+| **macOS** | Installer | [`auraav-macos.pkg`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-macos.pkg) |
 | **Debian / Ubuntu** | `.deb` package | [`auraav-linux-amd64.deb`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-linux-amd64.deb) |
 | **Fedora / openSUSE** | `.rpm` package | [`auraav-linux-amd64.rpm`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-linux-amd64.rpm) |
 | **Any Linux** | Portable tarball | [`auraav-linux-amd64.tar.gz`](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases/latest/download/auraav-linux-amd64.tar.gz) |
@@ -91,7 +93,8 @@ cargo run -p auraav-gui        # run from source
 ```
 
 Installers are on the [releases page](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases):
-Windows `.msi` (Start Menu shortcut) / `.zip`, Linux `.deb` / `.rpm` / `.tar.gz`.
+Windows `.msi` (Start Menu shortcut) / `.zip`, macOS `.dmg` / `.pkg`, Linux
+`.deb` / `.rpm` / `.tar.gz`.
 
 ## Build CLI Only
 
