@@ -1,0 +1,6 @@
+# auraAV known-malware hash signatures (JSONL).
+# Each line: {"sha256","name","family","detection_type","severity"}
+# These are safe, published test/example hashes.
+{"sha256":"275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f","name":"EICAR-Test-File","family":"EICAR","detection_type":"Known","severity":1.0}
+# EICAR as commonly shipped inside a ZIP (anti-malware test)
+{"sha256":"90e4dbfc4dd89b9c0f25b7d75a38ff9c1cb9859b5072a46e72c5472d6bd18426","name":"EICAR-Test-File.zip","family":"EICAR","detection_type":"Known","severity":1.0}

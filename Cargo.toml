@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/auraav-core",
+    "crates/auraav-platform",
+    "crates/auraav-cli",
+    "apps/auraav-tauri",
+]
+default-members = ["crates/auraav-cli"]

@@ -1,0 +1,44 @@
+[package]
+name = "auraav-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core scanning engine for auraAV antivirus"
+authors = ["auraAV"]
+license = "GPL-3.0-only"
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+hex = "0.4"
+sha2 = "0.10"
+walkdir = "2.5"
+globset = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.11", features = ["v4", "serde"] }
+rusqlite = { version = "0.32", features = ["bundled", "chrono", "serde_json", "uuid"] }
+blake3 = "1.5"
+tempfile = "3.14"
+dirs = "5.0"
+regex = "1.11"
+crossbeam-channel = "0.5"
+rayon = "1.10"
+object = "0.36"
+memmap2 = "0.9"
+entropy = "0.4"
+goblin = "0.9"
+iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "std", "instr_info"] }
+bincode = "1.3"
+rustc-hash = "2.0"
+ahash = "0.8"
+indexmap = "2.6"
+smallvec = { version = "1.13", features = ["serde"] }
+parking_lot = "0.12"
+notify = { version = "7.0", optional = true }
+
+[features]
+default = []
+real-time = ["notify"]
