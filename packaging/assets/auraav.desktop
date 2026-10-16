@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=auraAV
+GenericName=Antivirus
+Comment=Unified, offline-first antivirus (no subscription)
+Exec=auraav-gui
+Icon=auraav
+Terminal=false
+Categories=Utility;Security;
+Keywords=antivirus;security;malware;scan;auraav;

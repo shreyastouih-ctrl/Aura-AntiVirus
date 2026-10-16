@@ -4,6 +4,7 @@ members = [
     "crates/auraav-core",
     "crates/auraav-platform",
     "crates/auraav-cli",
+    "apps/auraav-gui",
     "apps/auraav-tauri",
 ]
 default-members = ["crates/auraav-cli"]

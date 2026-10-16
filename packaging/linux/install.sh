@@ -3,7 +3,8 @@
 #
 #   ./install.sh [--prefix /usr/local]
 #
-# The binary discovers its data via the executable's location, so any prefix
+# Installs the GUI (auraav-gui), the CLI (auraav), data, desktop entry and icon.
+# The binaries discover their data via the executable's location, so any prefix
 # works as long as the relative layout (bin/, share/auraav/data/) is kept.
 set -euo pipefail
 
@@ -18,12 +19,18 @@ while [ $# -gt 0 ]; do
 done
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-src_bin="$here/bin/auraav"
-src_data="$here/share/auraav/data"
-[ -x "$src_bin" ] || { echo "missing $src_bin" >&2; exit 1; }
+[ -x "$here/bin/auraav" ] || { echo "missing $here/bin/auraav" >&2; exit 1; }
 
 echo "Installing auraAV to $prefix"
-install -d "$prefix/bin" "$prefix/share/auraav"
-install -m755 "$src_bin" "$prefix/bin/auraav"
-cp -a "$src_data" "$prefix/share/auraav/"
-echo "Done. Try: $prefix/bin/auraav --version"
+install -d "$prefix/bin" "$prefix/share/auraav" \
+           "$prefix/share/applications" "$prefix/share/icons/hicolor/scalable/apps"
+install -m755 "$here/bin/auraav" "$prefix/bin/auraav"
+[ -x "$here/bin/auraav-gui" ] && install -m755 "$here/bin/auraav-gui" "$prefix/bin/auraav-gui"
+cp -a "$here/share/auraav/data" "$prefix/share/auraav/"
+install -m644 "$here/share/applications/auraav.desktop" "$prefix/share/applications/auraav.desktop"
+install -m644 "$here/share/icons/hicolor/scalable/apps/auraav.svg" \
+             "$prefix/share/icons/hicolor/scalable/apps/auraav.svg"
+echo
+echo "Done."
+echo "  GUI: $prefix/bin/auraav-gui   (or launch 'auraAV' from your app menu)"
+echo "  CLI: $prefix/bin/auraav --help"

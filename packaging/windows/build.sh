@@ -1,32 +1,36 @@
 #!/usr/bin/env bash
-# Build auraAV Windows artifacts: portable .zip and an .msi installer.
-# Cross-compiles from Linux with mingw-w64; the .msi is built with wixl.
+# Build auraAV Windows artifacts: portable .zip and .msi (GUI + CLI).
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
+assets="$root/packaging/assets"
 ver="$(sed -nE 's/^version *= *"([^"]+)".*/\1/p' "$root/crates/auraav-cli/Cargo.toml" | head -1)"
 dist="$root/dist/windows"
 rm -rf "$dist"
 mkdir -p "$dist"
 
-target="x86_64-pc-windows-gnu"
-echo ">> auraAV $ver (windows x64, $target)"
+echo ">> auraAV $ver (windows/x64)"
 
-rustup target add "$target" >/dev/null 2>&1 || true
-( cd "$root" && cargo build --release --target "$target" -p auraav-cli )
-exe="$root/target/$target/release/auraav-cli.exe"
-[ -f "$exe" ] || { echo "exe not found: $exe" >&2; exit 1; }
+# --- build the binaries (GUI + CLI) ----------------------------------------
+( cd "$root" && cargo build --release --target x86_64-pc-windows-gnu -p auraav-cli -p auraav-gui )
+cli="$root/target/x86_64-pc-windows-gnu/release/auraav-cli.exe"
+gui="$root/target/x86_64-pc-windows-gnu/release/auraav-gui.exe"
+[ -f "$cli" ] || { echo "exe not found: $cli" >&2; exit 1; }
+[ -f "$gui" ] || { echo "exe not found: $gui" >&2; exit 1; }
 
 # --- portable zip -----------------------------------------------------------
 stage="$dist/auraav-${ver}-win64"
 mkdir -p "$stage"
-cp "$exe" "$stage/auraav.exe"
+cp "$cli" "$stage/auraav.exe"
+cp "$gui" "$stage/auraav-gui.exe"
+cp "$assets/auraav.ico" "$stage/auraav.ico"
 cp -a "$root/data" "$stage/data"
 cat > "$stage/README.txt" <<EOF
 auraAV ${ver} (Windows x64)
-Run:  auraav.exe --help
-Data (signatures/rules) lives in the data\ subdirectory next to this exe.
+GUI : double-click auraav-gui.exe (or the Start Menu shortcut after installing the .msi)
+CLI : auraav.exe --help
+Data: signatures/rules live in the data\ subdirectory next to these exes.
 EOF
 if command -v bsdtar >/dev/null; then
   ( cd "$dist" && bsdtar -a -cf "auraav-${ver}-win64.zip" "$(basename "$stage")" )
@@ -39,11 +43,9 @@ echo "   zip    : dist/windows/auraav-${ver}-win64.zip"
 
 # --- .msi via wixl ----------------------------------------------------------
 if command -v wixl >/dev/null; then
-  guid_for() { # deterministic GUID from an arbitrary string
-    local h; h="$(printf '%s' "$1" | md5sum | cut -c1-32)"
-    printf '%s-%s-%s-%s-%s' "${h:0:8}" "${h:8:4}" "${h:12:4}" "${h:16:4}" "${h:20:12}"
-  }
-  san() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }   # WiX-safe identifier
+  guid_for() { local h; h="$(printf '%s' "$1" | md5sum | cut -c1-32)"
+    printf '%s-%s-%s-%s-%s' "${h:0:8}" "${h:8:4}" "${h:12:4}" "${h:16:4}" "${h:20:12}"; }
+  san() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }
   upgrade_guid="$(guid_for "auraav-upgrade-code")"
 
   wxs="$dist/auraav.wxs"
@@ -61,7 +63,12 @@ if command -v wixl >/dev/null; then
     echo "          <Component Id=\"MainExe\" Guid=\"$(guid_for "auraav.exe")\">"
     echo "            <File Id=\"auraav.exe\" Source=\"${stage}/auraav.exe\" KeyPath=\"yes\"/>"
     echo '          </Component>'
-    # data files, preserved as INSTALLDIR\data\<sub>\<file>
+    echo "          <Component Id=\"GuiExe\" Guid=\"$(guid_for "auraav-gui.exe")\">"
+    echo "            <File Id=\"auraav-gui.exe\" Source=\"${stage}/auraav-gui.exe\" KeyPath=\"yes\"/>"
+    echo '          </Component>'
+    echo "          <Component Id=\"AppIcon\" Guid=\"$(guid_for "auraav.ico")\">"
+    echo "            <File Id=\"auraav.ico\" Source=\"${stage}/auraav.ico\" KeyPath=\"yes\"/>"
+    echo '          </Component>'
     while IFS= read -r d; do
       name="$(basename "$d")"
       echo "          <Directory Id=\"D_$(san "$name")\" Name=\"${name}\">"
@@ -75,9 +82,25 @@ if command -v wixl >/dev/null; then
     done < <(find "$root/data" -mindepth 1 -maxdepth 1 -type d | sort)
     echo '        </Directory>'
     echo '      </Directory>'
+    # Start Menu shortcut -> the GUI executable
+    echo '      <Directory Id="ProgramMenuFolder">'
+    echo '        <Directory Id="AppMenuFolder" Name="auraAV">'
+    echo "          <Component Id=\"AppShortcut\" Guid=\"$(guid_for "auraav-shortcut")\">"
+    echo '            <Shortcut Id="StartMenuShortcut" Name="auraAV"'
+    echo '                      Description="auraAV antivirus"'
+    echo '                      Target="[INSTALLDIR]auraav-gui.exe" WorkingDirectory="INSTALLDIR"/>'
+    echo '            <RemoveFolder Id="AppMenuFolder" On="uninstall"/>'
+    echo '            <RegistryValue Root="HKCU" Key="Software\auraAV" Name="installed"'
+    echo '                           Type="integer" Value="1" KeyPath="yes"/>'
+    echo '          </Component>'
+    echo '        </Directory>'
+    echo '      </Directory>'
     echo '    </Directory>'
     echo '    <Feature Id="Main" Title="auraAV" Level="1">'
     echo '      <ComponentRef Id="MainExe"/>'
+    echo '      <ComponentRef Id="GuiExe"/>'
+    echo '      <ComponentRef Id="AppIcon"/>'
+    echo '      <ComponentRef Id="AppShortcut"/>'
     while IFS= read -r f; do
       rel="${f#"$root/data/"}"
       echo "      <ComponentRef Id=\"Comp_$(san "$rel")\"/>"

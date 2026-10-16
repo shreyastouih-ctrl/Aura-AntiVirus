@@ -1,0 +1,18 @@
+[package]
+name = "auraav-gui"
+version = "0.2.0"
+edition = "2021"
+license = "GPL-3.0-only"
+description = "auraAV desktop GUI (native, egui)"
+
+[[bin]]
+name = "auraav-gui"
+path = "src/main.rs"
+
+[dependencies]
+auraav-core = { path = "../../crates/auraav-core" }
+auraav-platform = { path = "../../crates/auraav-platform" }
+crossbeam-channel = "0.5.17"
+dirs = "7.0.0"
+eframe = "0.37.0"
+uuid = { version = "1.28.0", features = ["v4"] }

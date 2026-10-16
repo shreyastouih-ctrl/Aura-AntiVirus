@@ -1,13 +1,13 @@
 # Packaging
 
 Build installers for each platform. All scripts read the version from
-`crates/auraav-cli/Cargo.toml` and write into `dist/<os>/`.
+`crates/auraav-cli/Cargo.toml` and write into `dist/<os>/`. Each package ships
+both the desktop GUI (`auraav-gui`) and the CLI (`auraav`).
 
-| Platform | Command (host)            | Artifacts                                   |
-| -------- | ------------------------- | ------------------------------------------- |
-| Linux    | `packaging/linux/build.sh`   | `.tar.gz`, `.deb`, `.rpm`                 |
-| Windows  | `packaging/windows/build.sh` | `.zip`, `.msi` (cross-built with mingw+wixl) |
-| macOS    | `packaging/macos/build.sh`   | `.pkg`, `.dmg` (macOS host only)          |
+| Platform | Command (host)               | Artifacts                                      |
+| -------- | ---------------------------- | ---------------------------------------------- |
+| Linux    | `packaging/linux/build.sh`   | `.tar.gz`, `.deb`, `.rpm`                       |
+| Windows  | `packaging/windows/build.sh` | `.zip`, `.msi` (cross-built with mingw + wixl)  |
 
 ## Linux
 
@@ -21,22 +21,20 @@ sudo dpkg -i dist/linux/auraav_*_amd64.deb
 sudo rpm  -i dist/linux/auraav-*.rpm
 ```
 
-The binary locates its signatures/rules relative to the executable
-(`<exe_dir>/data`, `<exe_dir>/../share/auraav/data`), so all layouts above work.
+Packages install the GUI (`auraav-gui`), the CLI (`auraav`), a desktop entry
+(`auraAV`) and an icon. The binaries locate their signatures/rules relative to
+the executable (`<exe_dir>/data`, `<exe_dir>/../share/auraav/data`), so all
+layouts above work.
 
 ## Windows
 
 Cross-compiled from Linux (`rustup target add x86_64-pc-windows-gnu`,
-`mingw-w64-gcc`, `wixl`). The `.msi` installs to `Program Files\auraAV`,
-adds the directory to `PATH`, and places data in `Program Files\auraAV\data`.
-
-## macOS
-
-Requires a macOS host (Apple `pkgbuild`/`hdiutil`). Not buildable on Linux;
-use the CI workflow, which runs it on a `macos-latest` runner.
+`mingw-w64`, `wixl`). The `.msi` installs `auraav-gui.exe` + `auraav.exe` and
+the data to `Program Files\auraAV`, and adds a **Start Menu shortcut** to the
+GUI. The `.zip` is portable (double-click `auraav-gui.exe`).
 
 ## CI
 
-`.github/workflows/release.yml` builds all three platforms and attaches the
-artifacts to a GitHub Release when a `v*` tag is pushed (or run manually via
-workflow_dispatch).
+`.github/workflows/release.yml` builds Linux and Windows and attaches the
+artifacts to a GitHub Release when a `v*` tag is pushed (or via
+`workflow_dispatch`).

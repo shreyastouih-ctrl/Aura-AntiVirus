@@ -8,7 +8,7 @@ auraAV is a unified multi-engine antivirus built to scan **all threat types at o
 - **Offline-first** - Core detection works without internet. No subscription, no account, no forced cloud lookups
 - **User control** - Quarantine with explicit override to allow genuine files
 - **System integration** - Startup quick scan, external drive detection, real-time monitoring (toggleable)
-- **Cross-platform** - Linux, Windows, macOS (desktop)
+- **Cross-platform** - Linux and Windows (desktop GUI + CLI)
 - **Easy UI** - Simple interface with transparent detection reasons
 
 **Detection Layers (all run on every file in one pass):**
@@ -42,16 +42,17 @@ cargo run -p auraav-cli -- startup install|uninstall|status
 
 Global flags: `--malicious-only`, `--sensitivity off|low|medium|high`, `--no-history`.
 
-## Build the Tauri UI
+## Desktop GUI
 
-Requires system WebKitGTK (Arch: `webkit2gtk-4.1`; Debian/Ubuntu:
-`libwebkit2gtk-4.1-dev`), plus `libsoup3` and GTK3.
+`auraav-gui` is a self-contained native app (egui) — no WebKit/GTK runtime
+required. Scan, watch real-time protection, browse detections/quarantine/history.
 
 ```bash
-cd apps/auraav-tauri
-cargo tauri dev      # dev mode
-cargo tauri build    # release
+cargo run -p auraav-gui        # run from source
 ```
+
+Installers are on the [releases page](https://github.com/shreyastouih-ctrl/Aura-AntiVirus/releases):
+Windows `.msi` (Start Menu shortcut) / `.zip`, Linux `.deb` / `.rpm` / `.tar.gz`.
 
 ## Build CLI Only
 
