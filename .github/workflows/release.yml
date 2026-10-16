@@ -19,19 +19,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: dist/linux/*.tar.gz
-          if-no-files-found: error
-      - shell: bash
-        run: |
-          shopt -s nullglob
-          cp dist/linux/*.deb dist/linux/*.rpm dist/linux/*.tar.gz "$RUNNER_TEMP"/ 2>/dev/null || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-packages
           path: |
+            dist/linux/*.tar.gz
             dist/linux/*.deb
             dist/linux/*.rpm
-          if-no-files-found: warn
+          if-no-files-found: error
 
   windows:
     runs-on: ubuntu-latest
@@ -40,7 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu
-      - run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 msitools
+      - run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 msitools wixl wixl-data
       - run: bash packaging/windows/build.sh
       - uses: actions/upload-artifact@v4
         with:

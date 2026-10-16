@@ -86,6 +86,10 @@ if command -v wixl >/dev/null; then
 
   wixl -a x64 -o "$dist/auraav-${ver}-win64.msi" "$wxs"
   echo "   msi    : dist/windows/auraav-${ver}-win64.msi"
+else
+  echo "ERROR: wixl not found; cannot build the .msi installer." >&2
+  echo "       Debian/Ubuntu: sudo apt-get install -y wixl wixl-data" >&2
+  exit 1
 fi
 
 echo ">> done: $dist"
