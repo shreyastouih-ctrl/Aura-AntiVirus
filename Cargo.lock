@@ -512,7 +512,7 @@ dependencies = [
 
 [[package]]
 name = "auraav-cli"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "auraav-core",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "auraav-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "anyhow",
@@ -568,7 +568,7 @@ dependencies = [
 
 [[package]]
 name = "auraav-gui"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "auraav-core",
  "auraav-platform",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "auraav-platform"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "auraav-core",
@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "auraav-tauri"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "auraav-core",
  "auraav-platform",
