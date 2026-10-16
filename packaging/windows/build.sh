@@ -43,6 +43,7 @@ if command -v wixl >/dev/null; then
     local h; h="$(printf '%s' "$1" | md5sum | cut -c1-32)"
     printf '%s-%s-%s-%s-%s' "${h:0:8}" "${h:8:4}" "${h:12:4}" "${h:16:4}" "${h:20:12}"
   }
+  san() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }   # WiX-safe identifier
   upgrade_guid="$(guid_for "auraav-upgrade-code")"
 
   wxs="$dist/auraav.wxs"
@@ -51,25 +52,27 @@ if command -v wixl >/dev/null; then
     echo '<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">'
     echo "  <Product Id=\"*\" Name=\"auraAV\" Language=\"1033\" Version=\"${ver}\""
     echo "           Manufacturer=\"auraAV\" UpgradeCode=\"${upgrade_guid}\">"
-    echo '    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"/>'
+    echo '    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"/>'
     echo '    <MajorUpgrade DowngradeErrorMessage="A newer version of auraAV is already installed."/>'
-    echo '    <MediaTemplate EmbedCab="yes"/>'
+    echo '    <Media Id="1" Cabinet="auraav.cab" EmbedCab="yes"/>'
     echo '    <Directory Id="TARGETDIR" Name="SourceDir">'
     echo '      <Directory Id="ProgramFiles64Folder">'
     echo '        <Directory Id="INSTALLDIR" Name="auraAV">'
-    echo "          <Component Id=\"MainExe\" Guid=\"$(guid_for "auraav.exe")\" Win64=\"yes\">"
+    echo "          <Component Id=\"MainExe\" Guid=\"$(guid_for "auraav.exe")\">"
     echo "            <File Id=\"auraav.exe\" Source=\"${stage}/auraav.exe\" KeyPath=\"yes\"/>"
-    echo '            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Part="last" Action="set" System="yes"/>'
     echo '          </Component>'
-    # data files, preserved as INSTALLDIR/data/<sub>/<file>
-    while IFS= read -r f; do
-      rel="${f#"$root/data/"}"          # e.g. rules/example_rules.yar
-      echo "          <Directory Id=\"D_$(guid_for "$rel")\" Name=\"$(dirname "$rel")\">"
-      echo "            <Component Id=\"C_$(guid_for "$rel")\" Guid=\"$(guid_for "$rel")\" Win64=\"yes\">"
-      echo "              <File Id=\"F_$(guid_for "$rel")\" Source=\"${f}\"/>"
-      echo '            </Component>'
+    # data files, preserved as INSTALLDIR\data\<sub>\<file>
+    while IFS= read -r d; do
+      name="$(basename "$d")"
+      echo "          <Directory Id=\"D_$(san "$name")\" Name=\"${name}\">"
+      while IFS= read -r f; do
+        rel="${f#"$root/data/"}"
+        echo "            <Component Id=\"Comp_$(san "$rel")\" Guid=\"$(guid_for "$rel")\">"
+        echo "              <File Id=\"File_$(san "$rel")\" Source=\"${f}\"/>"
+        echo '            </Component>'
+      done < <(find "$d" -maxdepth 1 -type f | sort)
       echo '          </Directory>'
-    done < <(find "$root/data" -type f | sort)
+    done < <(find "$root/data" -mindepth 1 -maxdepth 1 -type d | sort)
     echo '        </Directory>'
     echo '      </Directory>'
     echo '    </Directory>'
@@ -77,7 +80,7 @@ if command -v wixl >/dev/null; then
     echo '      <ComponentRef Id="MainExe"/>'
     while IFS= read -r f; do
       rel="${f#"$root/data/"}"
-      echo "      <ComponentRef Id=\"C_$(guid_for "$rel")\"/>"
+      echo "      <ComponentRef Id=\"Comp_$(san "$rel")\"/>"
     done < <(find "$root/data" -type f | sort)
     echo '    </Feature>'
     echo '  </Product>'
@@ -87,8 +90,7 @@ if command -v wixl >/dev/null; then
   wixl -a x64 -o "$dist/auraav-${ver}-win64.msi" "$wxs"
   echo "   msi    : dist/windows/auraav-${ver}-win64.msi"
 else
-  echo "ERROR: wixl not found; cannot build the .msi installer." >&2
-  echo "       Debian/Ubuntu: sudo apt-get install -y wixl wixl-data" >&2
+  echo "ERROR: wixl not found; cannot build the .msi installer" >&2
   exit 1
 fi
 
