@@ -1,10 +1,10 @@
 [package]
 name = "auraav-core"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Core scanning engine for auraAV antivirus"
 authors = ["auraAV"]
-license = "GPL-3.0-only"
+license = "LicenseRef-Proprietary"
 
 [dependencies]
 anyhow = "1.0"
@@ -38,6 +38,10 @@ indexmap = "2.6"
 smallvec = { version = "1.13", features = ["serde"] }
 parking_lot = "0.12"
 notify = { version = "7.0", optional = true }
+ureq = { version = "2", features = ["json"] }
+tar = "0.4"
+flate2 = "1"
+zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
 
 [features]
 default = []

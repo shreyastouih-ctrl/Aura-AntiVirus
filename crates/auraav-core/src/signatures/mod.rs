@@ -17,13 +17,21 @@ fn has_pack(dir: &Path) -> bool {
 ///
 /// Order of preference:
 /// 1. `$AURAAV_DATA_DIR` if set.
-/// 2. `<cwd>/data` when a signature/rule pack exists (dev/portable use).
-/// 3. Next to the executable: `<exe_dir>/data` or `<exe_dir>/../share/auraav/data`
+/// 2. The per-user updated pack (`~/.local/share/auraav/data`) when present, so
+///    downloaded signature updates apply to every install.
+/// 3. `<cwd>/data` when a signature/rule pack exists (dev/portable use).
+/// 4. Next to the executable: `<exe_dir>/data` or `<exe_dir>/../share/auraav/data`
 ///    (installed layouts, e.g. `/usr/bin/auraav` + `/usr/share/auraav/data`).
-/// 4. The user data dir (`~/.local/share/auraav/data` on Linux).
+/// 5. The user data dir (`~/.local/share/auraav/data` on Linux) as a fallback.
 pub fn data_dir() -> Option<PathBuf> {
     if let Ok(dir) = std::env::var("AURAAV_DATA_DIR") {
         return Some(PathBuf::from(dir));
+    }
+    let user = dirs::data_dir().map(|d| d.join("auraav").join("data"));
+    if let Some(dir) = &user {
+        if has_pack(dir) {
+            return Some(dir.clone());
+        }
     }
     if let Ok(cwd) = std::env::current_dir() {
         let candidate = cwd.join("data");
@@ -44,7 +52,7 @@ pub fn data_dir() -> Option<PathBuf> {
             }
         }
     }
-    dirs::data_dir().map(|d| d.join("auraav").join("data"))
+    user
 }
 
 /// Build a [`SignatureDb`], loading every signature and rule pack we can find.

@@ -9,7 +9,10 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "auraav")]
-#[command(version, about = "auraAV - unified, offline-first antivirus (no subscription)")]
+#[command(
+    version,
+    about = "auraAV - unified, offline-first antivirus (no subscription)"
+)]
 struct Cli {
     /// Only report threats that are Malicious (skip Suspicious).
     #[arg(long, global = true)]
@@ -31,6 +34,14 @@ struct Cli {
     #[arg(long, global = true)]
     all: bool,
 
+    /// Skip online hash confirmation of suspicious/malicious files.
+    #[arg(long, global = true)]
+    no_cloud: bool,
+
+    /// Do not check for app/signature updates on startup.
+    #[arg(long, global = true)]
+    no_update: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -45,9 +56,7 @@ enum Commands {
     },
     /// Full scan of the filesystem (defaults to /).
     #[command(name = "full-scan")]
-    FullScan {
-        paths: Vec<PathBuf>,
-    },
+    FullScan { paths: Vec<PathBuf> },
     /// Scan specific paths.
     Scan {
         paths: Vec<PathBuf>,
@@ -62,9 +71,7 @@ enum Commands {
         quarantine: bool,
     },
     /// Watch common directories and scan files as they are written.
-    Monitor {
-        paths: Vec<PathBuf>,
-    },
+    Monitor { paths: Vec<PathBuf> },
     /// Manage the quarantine.
     #[command(subcommand)]
     Quarantine(QuarantineCmd),
@@ -111,7 +118,62 @@ fn build_config(cli: &Cli) -> ScanConfig {
         _ => HeuristicSensitivity::Low,
     };
     config.similarity_sensitivity = SimilaritySensitivity::default();
+    config.enable_cloud = !cli.no_cloud && std::env::var_os("AURAAV_NO_CLOUD").is_none();
     config
+}
+
+fn startup_tasks(cli: &Cli) {
+    auraav_core::crash::install_panic_hook();
+
+    let env_offline = std::env::var_os("AURAAV_NO_UPDATE").is_some()
+        || std::env::var_os("AURAAV_NO_CLOUD").is_some();
+
+    std::thread::spawn(|| {
+        let sent = auraav_core::crash::flush_pending();
+        if sent > 0 {
+            eprintln!("auraAV: opened {sent} queued crash report(s) in your browser.");
+        }
+    });
+
+    if cli.no_update || env_offline {
+        return;
+    }
+    std::thread::spawn(|| {
+        if let Err(e) = check_for_updates() {
+            eprintln!("auraAV: no update ({e})");
+        }
+    });
+}
+
+fn check_for_updates() -> Result<(), String> {
+    let current = env!("CARGO_PKG_VERSION");
+    let release = auraav_core::update::latest_release()?;
+    let remote = release.version();
+    if !auraav_core::update::is_newer(&remote, current) {
+        return Ok(());
+    }
+    eprintln!("auraAV: v{remote} available (you have v{current}).");
+
+    if let Ok(dir) = auraav_core::update::apply_data(&release) {
+        eprintln!("auraAV: signatures updated -> {}", dir.display());
+    }
+    match auraav_core::update::apply_app(&release) {
+        Ok(auraav_core::update::AppUpdate::Replaced(paths)) => {
+            eprintln!(
+                "auraAV: app updated in place ({} file(s)); restart to use it.",
+                paths.len()
+            );
+        }
+        Ok(auraav_core::update::AppUpdate::Staged(dir)) => {
+            eprintln!(
+                "auraAV: new build staged at {} (current install is not writable).",
+                dir.display()
+            );
+        }
+        Ok(auraav_core::update::AppUpdate::Unsupported) => {}
+        Err(e) => eprintln!("auraAV: app update skipped ({e})"),
+    }
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
@@ -121,6 +183,7 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
+    startup_tasks(&cli);
     let config = build_config(&cli);
     let is_threat = |v: Verdict| {
         if cli.malicious_only {
@@ -135,7 +198,15 @@ fn main() -> anyhow::Result<()> {
             if paths.is_empty() {
                 paths = default_quick_paths();
             }
-            run_scan(&config, &paths, false, is_threat, cli.no_history, cli.all, cli.json)?;
+            run_scan(
+                &config,
+                &paths,
+                false,
+                is_threat,
+                cli.no_history,
+                cli.all,
+                cli.json,
+            )?;
         }
         Commands::FullScan { paths } => {
             let paths = if paths.is_empty() {
@@ -143,13 +214,29 @@ fn main() -> anyhow::Result<()> {
             } else {
                 paths
             };
-            run_scan(&config, &paths, false, is_threat, cli.no_history, cli.all, cli.json)?;
+            run_scan(
+                &config,
+                &paths,
+                false,
+                is_threat,
+                cli.no_history,
+                cli.all,
+                cli.json,
+            )?;
         }
         Commands::Scan { paths, quarantine } => {
             if paths.is_empty() {
                 anyhow::bail!("no paths specified");
             }
-            run_scan(&config, &paths, quarantine, is_threat, cli.no_history, cli.all, cli.json)?;
+            run_scan(
+                &config,
+                &paths,
+                quarantine,
+                is_threat,
+                cli.no_history,
+                cli.all,
+                cli.json,
+            )?;
         }
         Commands::ScanDrives { quarantine } => {
             let drives = auraav_platform::list_removable_drives();
@@ -159,9 +246,21 @@ fn main() -> anyhow::Result<()> {
             }
             let paths: Vec<PathBuf> = drives.iter().map(|d| d.mount_point.clone()).collect();
             for d in &drives {
-                println!("Scanning removable drive {} ({})", d.mount_point.display(), d.name);
+                println!(
+                    "Scanning removable drive {} ({})",
+                    d.mount_point.display(),
+                    d.name
+                );
             }
-            run_scan(&config, &paths, quarantine, is_threat, cli.no_history, cli.all, cli.json)?;
+            run_scan(
+                &config,
+                &paths,
+                quarantine,
+                is_threat,
+                cli.no_history,
+                cli.all,
+                cli.json,
+            )?;
         }
         Commands::Monitor { paths } => {
             let paths = if paths.is_empty() {
@@ -171,10 +270,7 @@ fn main() -> anyhow::Result<()> {
             };
             let db = auraav_core::signatures::load_default_db();
             let detector = auraav_core::Detector::new(db, config);
-            println!(
-                "Real-time protection active on {} path(s):",
-                paths.len()
-            );
+            println!("Real-time protection active on {} path(s):", paths.len());
             for p in &paths {
                 println!("  {}", p.display());
             }
@@ -243,11 +339,9 @@ fn main() -> anyhow::Result<()> {
             let drives = auraav_platform::list_drives();
             for d in &drives {
                 let size = match (d.total_bytes, d.available_bytes) {
-                    (Some(t), Some(a)) => format!(
-                        "{:.1}G free / {:.1}G",
-                        a as f64 / 1e9,
-                        t as f64 / 1e9
-                    ),
+                    (Some(t), Some(a)) => {
+                        format!("{:.1}G free / {:.1}G", a as f64 / 1e9, t as f64 / 1e9)
+                    }
                     _ => String::from("?"),
                 };
                 println!(
@@ -349,8 +443,16 @@ fn run_scan<F: Fn(Verdict) -> bool>(
         let qm = QuarantineManager::open_default()?;
         for t in &threats {
             if t.verdict == Verdict::Malicious {
-                match qm.quarantine(t, t.hits.first().map(|h| h.reason.as_str()).unwrap_or("detected")) {
-                    Ok(entry) => println!("  quarantined {} -> {}", t.file_path.display(), entry.id),
+                match qm.quarantine(
+                    t,
+                    t.hits
+                        .first()
+                        .map(|h| h.reason.as_str())
+                        .unwrap_or("detected"),
+                ) {
+                    Ok(entry) => {
+                        println!("  quarantined {} -> {}", t.file_path.display(), entry.id)
+                    }
                     Err(e) => eprintln!("  failed to quarantine {}: {e}", t.file_path.display()),
                 }
             }

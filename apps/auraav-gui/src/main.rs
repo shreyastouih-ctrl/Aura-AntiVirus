@@ -241,9 +241,17 @@ impl eframe::App for App {
                             HeuristicSensitivity::Medium,
                             HeuristicSensitivity::High,
                         ] {
-                            ui.selectable_value(&mut self.config.heuristic_sensitivity, s, format!("{s:?}"));
+                            ui.selectable_value(
+                                &mut self.config.heuristic_sensitivity,
+                                s,
+                                format!("{s:?}"),
+                            );
                         }
                     });
+                ui.checkbox(&mut self.config.enable_cloud, "Cloud check")
+                    .on_hover_text(
+                        "Confirm suspicious/malicious files by SHA-256 online (MalwareBazaar)",
+                    );
             });
         });
         ui.separator();
@@ -271,8 +279,15 @@ impl eframe::App for App {
                         self.start_scan("Drive scan", paths);
                     }
                 }
-                let monitor_label = if self.monitor_on { "Real-time: On" } else { "Enable Real-time" };
-                if ui.add_enabled(!self.monitor_on, egui::Button::new(monitor_label)).clicked() {
+                let monitor_label = if self.monitor_on {
+                    "Real-time: On"
+                } else {
+                    "Enable Real-time"
+                };
+                if ui
+                    .add_enabled(!self.monitor_on, egui::Button::new(monitor_label))
+                    .clicked()
+                {
                     self.start_monitor();
                 }
             });
@@ -332,7 +347,11 @@ impl eframe::App for App {
                                     ui.label(r.file_path.to_string_lossy());
                                 });
                                 for h in &r.hits {
-                                    ui.label(RichText::new(format!("- {}", h.reason)).color(MUTED).small());
+                                    ui.label(
+                                        RichText::new(format!("- {}", h.reason))
+                                            .color(MUTED)
+                                            .small(),
+                                    );
                                 }
                             });
                         }
@@ -369,7 +388,11 @@ impl eframe::App for App {
                         }
                         if let Some((id, delete)) = action {
                             if let Ok(qm) = QuarantineManager::open_default() {
-                                let res = if delete { qm.delete(id) } else { qm.restore(id) };
+                                let res = if delete {
+                                    qm.delete(id)
+                                } else {
+                                    qm.restore(id)
+                                };
                                 self.status = match res {
                                     Ok(()) => "Quarantine updated.".to_string(),
                                     Err(e) => format!("Error: {e}"),
@@ -383,11 +406,17 @@ impl eframe::App for App {
             ui.separator();
             ui.horizontal(|ui| {
                 ui.heading("History");
-                if ui.selectable_label(self.history_threats_only, "Threats").clicked() {
+                if ui
+                    .selectable_label(self.history_threats_only, "Threats")
+                    .clicked()
+                {
                     self.history_threats_only = true;
                     self.refresh_history();
                 }
-                if ui.selectable_label(!self.history_threats_only, "All").clicked() {
+                if ui
+                    .selectable_label(!self.history_threats_only, "All")
+                    .clicked()
+                {
                     self.history_threats_only = false;
                     self.refresh_history();
                 }
@@ -420,6 +449,17 @@ impl eframe::App for App {
 }
 
 fn main() -> eframe::Result<()> {
+    auraav_core::crash::install_panic_hook();
+    std::thread::spawn(|| {
+        let _ = auraav_core::crash::flush_pending();
+        if std::env::var_os("AURAAV_NO_UPDATE").is_none() {
+            if let Ok(rel) = auraav_core::update::latest_release() {
+                if auraav_core::update::is_newer(&rel.version(), env!("CARGO_PKG_VERSION")) {
+                    let _ = auraav_core::update::apply_data(&rel);
+                }
+            }
+        }
+    });
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([980.0, 760.0])
@@ -427,9 +467,5 @@ fn main() -> eframe::Result<()> {
             .with_title("auraAV - Unified Antivirus"),
         ..Default::default()
     };
-    eframe::run_native(
-        "auraAV",
-        options,
-        Box::new(|cc| Ok(Box::new(App::new(cc)))),
-    )
+    eframe::run_native("auraAV", options, Box::new(|cc| Ok(Box::new(App::new(cc)))))
 }

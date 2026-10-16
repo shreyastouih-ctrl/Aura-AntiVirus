@@ -12,7 +12,11 @@ const MAX_SCAN: usize = 4 * 1024 * 1024;
 /// Entropy-based packing hints are only meaningful for executables/unknown
 /// binaries; plain text/documents are never flagged on entropy alone. This
 /// keeps the false-positive rate low.
-pub fn analyze(kind: FileKind, data: &[u8], sensitivity: HeuristicSensitivity) -> Vec<DetectionHit> {
+pub fn analyze(
+    kind: FileKind,
+    data: &[u8],
+    sensitivity: HeuristicSensitivity,
+) -> Vec<DetectionHit> {
     if sensitivity == HeuristicSensitivity::Off {
         return Vec::new();
     }
@@ -73,13 +77,21 @@ fn analyze_binary(kind: FileKind, sample: &[u8], m: f32, hits: &mut Vec<Detectio
 
 fn analyze_script(sc: ScriptKind, sample: &[u8], m: f32, hits: &mut Vec<DetectionHit>) {
     if let Some(len) = find_long_base64(sample) {
-        hits.push(det(
-            DetectionLayer::Heuristic,
-            DetectionType::Packed,
-            format!("large base64 blob ({len} chars) — likely embedded/staged payload"),
-            (0.30 * m).min(0.55),
-            json!({ "base64_length": len }),
-        ));
+        // Web JS/TS bundles embed base64 assets routinely, so a blob only counts
+        // as suspicious there when it is paired with an actual decoder call.
+        let gated_ok = !matches!(sc, ScriptKind::JavaScript | ScriptKind::TypeScript)
+            || decode_tokens(sc)
+                .iter()
+                .any(|t| String::from_utf8_lossy(sample).to_lowercase().contains(t));
+        if gated_ok {
+            hits.push(det(
+                DetectionLayer::Heuristic,
+                DetectionType::Packed,
+                format!("large base64 blob ({len} chars) — likely embedded/staged payload"),
+                (0.30 * m).min(0.55),
+                json!({ "base64_length": len }),
+            ));
+        }
     }
 
     let tokens = script_tokens(sc);
@@ -96,13 +108,23 @@ fn analyze_script(sc: ScriptKind, sample: &[u8], m: f32, hits: &mut Vec<Detectio
         n => hits.push(det(
             DetectionLayer::Heuristic,
             DetectionType::Script,
-            format!("{n} dynamic-execution/obfuscation indicators: {}", found.join(", ")),
+            format!(
+                "{n} dynamic-execution/obfuscation indicators: {}",
+                found.join(", ")
+            ),
             (0.40 * m).min(0.7),
             json!({ "indicators": found }),
         )),
     }
 
-    if hex_escape_density(sample) {
+    // Minified web JS is full of `\uXXXX` escapes, so it needs far more of them
+    // before this is meaningful; native scripts are far less escape-heavy.
+    let escape_threshold = if matches!(sc, ScriptKind::JavaScript | ScriptKind::TypeScript) {
+        200
+    } else {
+        40
+    };
+    if hex_escape_count(sample) > escape_threshold {
         hits.push(det(
             DetectionLayer::Heuristic,
             DetectionType::Packed,
@@ -136,13 +158,14 @@ fn script_tokens(sc: ScriptKind) -> &'static [&'static str] {
             "pickle.loads",
         ],
         ScriptKind::JavaScript | ScriptKind::TypeScript => &[
-            "eval(",
-            "function(",
             "child_process",
             "execsync",
-            "atob(",
             "require('http",
             "require(\"http",
+            "wscript",
+            "activexobject",
+            "eval(atob(",
+            "fromcharcode(",
         ],
         ScriptKind::Shell => &[
             "eval ",
@@ -175,6 +198,21 @@ fn scan_tokens(sample: &[u8], tokens: &[&str]) -> Vec<String> {
         .collect()
 }
 
+/// Tokens that indicate the script actually decodes a payload. Used to gate the
+/// "large base64 blob" heuristic for web JS, where base64 is normal.
+fn decode_tokens(sc: ScriptKind) -> &'static [&'static str] {
+    match sc {
+        ScriptKind::JavaScript | ScriptKind::TypeScript => {
+            &["atob(", "fromcharcode(", "unescape(", "decodeuri"]
+        }
+        ScriptKind::PowerShell => &["frombase64string", "-encodedcommand", "certutil"],
+        ScriptKind::Python => &["b64decode", "decode(", "fromhex", "unhexlify"],
+        ScriptKind::Shell => &["base64 -d", "base64 --decode", "-decode"],
+        ScriptKind::Batch => &["certutil", "-decode"],
+        _ => &["base64"],
+    }
+}
+
 fn find_long_base64(data: &[u8]) -> Option<usize> {
     let text = String::from_utf8_lossy(data);
     let (mut best, mut run) = (0usize, 0usize);
@@ -189,7 +227,7 @@ fn find_long_base64(data: &[u8]) -> Option<usize> {
     (best >= 200).then_some(best)
 }
 
-fn hex_escape_density(data: &[u8]) -> bool {
+fn hex_escape_count(data: &[u8]) -> usize {
     let sample = &data[..data.len().min(64 * 1024)];
     let mut escapes = 0usize;
     let mut i = 0;
@@ -205,7 +243,7 @@ fn hex_escape_density(data: &[u8]) -> bool {
             i += 1;
         }
     }
-    escapes > 40
+    escapes
 }
 
 fn starts_with_pe(data: &[u8]) -> bool {
@@ -275,7 +313,11 @@ mod tests {
     #[test]
     fn powershell_obfuscation_flagged() {
         let data = b"powershell -EncodedCommand ZQBjAGgAbwAgAGgAaQA= -bypass IEX(New-Object DownloadString)";
-        let hits = analyze(FileKind::Script(ScriptKind::PowerShell), data, HeuristicSensitivity::Medium);
+        let hits = analyze(
+            FileKind::Script(ScriptKind::PowerShell),
+            data,
+            HeuristicSensitivity::Medium,
+        );
         assert!(!hits.is_empty());
     }
 
@@ -283,7 +325,13 @@ mod tests {
     fn long_base64_flagged() {
         let blob = "A".repeat(300);
         let data = format!("payload = \"{blob}\"");
-        let hits = analyze(FileKind::Script(ScriptKind::Python), data.as_bytes(), HeuristicSensitivity::Medium);
-        assert!(hits.iter().any(|h| h.detection_type == DetectionType::Packed));
+        let hits = analyze(
+            FileKind::Script(ScriptKind::Python),
+            data.as_bytes(),
+            HeuristicSensitivity::Medium,
+        );
+        assert!(hits
+            .iter()
+            .any(|h| h.detection_type == DetectionType::Packed));
     }
 }

@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::filetype::{classify_file, FileKind};
 use crate::signatures::SignatureDb;
+use crate::types::DetectionType;
 use crate::types::{DetectionHit, DetectionLayer, ScanConfig, ScanResult, Verdict};
 
 use similarity::FuzzyDigest;
@@ -43,6 +44,34 @@ impl Detector {
         &self.db
     }
 
+    /// Confirm a non-clean result against the online MalwareBazaar hash set.
+    /// Only the SHA-256 leaves the machine; a positive match upgrades the file
+    /// to `Malicious`. Failures are silent and never change the local verdict.
+    fn cloud_confirm(&self, sha256: &str, result: &mut ScanResult) {
+        match crate::cloud::lookup_hash(sha256) {
+            crate::cloud::CloudVerdict::Known { family } => {
+                let label = family
+                    .as_deref()
+                    .map(|f| format!("known malware ({f})"))
+                    .unwrap_or_else(|| "known malware sample".to_string());
+                result.hits.push(DetectionHit {
+                    layer: DetectionLayer::Cloud,
+                    detection_type: DetectionType::Known,
+                    reason: format!("Confirmed online: {label}"),
+                    family,
+                    confidence: 0.95,
+                    evidence: json!({
+                        "source": "MalwareBazaar",
+                        "sha256": sha256,
+                    }),
+                });
+                result.verdict = Verdict::Malicious;
+                result.confidence = result.confidence.max(0.95);
+            }
+            crate::cloud::CloudVerdict::Unknown | crate::cloud::CloudVerdict::Unavailable(_) => {}
+        }
+    }
+
     /// Scan a file from disk. Returns `None` if it cannot be read.
     pub fn scan_file(&self, path: &Path) -> Option<ScanResult> {
         let meta = std::fs::metadata(path).ok()?;
@@ -52,7 +81,11 @@ impl Detector {
         let size = meta.len();
         let (sha256, content) = read_and_hash(path).ok()?;
         let kind = classify_file(path, &content);
-        Some(self.evaluate(path, size, &sha256, kind, &content))
+        let mut result = self.evaluate(path, size, &sha256, kind, &content);
+        if self.config.enable_cloud && result.verdict != Verdict::Clean {
+            self.cloud_confirm(&sha256, &mut result);
+        }
+        Some(result)
     }
 
     /// Scan an in-memory buffer with a known path.

@@ -1,0 +1,31 @@
+auraAV — Proprietary License
+Copyright (c) 2026 Shreyasrasuri (shreyastouih-ctrl). All Rights Reserved.
+
+This software, including its source code, binary builds, detection rules,
+documentation, design, file layouts, algorithms and associated materials (the
+"Software"), is the exclusive property of the copyright holder.
+
+No part of the Software may be, in whole or in part:
+
+  - copied, reproduced, mirrored, published or redistributed;
+  - modified, adapted, translated or used to create derivative works;
+  - reverse engineered, decompiled or disassembled;
+  - used to develop, train, fine-tune or inform any other software, service,
+    product or machine-learning model;
+  - sold, sublicensed, hosted, or offered as a service;
+
+without the prior express written permission of the copyright holder.
+
+Possession of, access to, or use of the Software grants no license, express or
+implied, by estoppel or otherwise. All rights not expressly granted are
+reserved. Nothing in this notice waives any right of the copyright holder.
+
+"auraAV" and the auraAV shield logo are trademarks of the copyright holder.
+Unauthorized use of these marks is prohibited.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+For permissions, commercial licensing, or any other request, contact the
+copyright holder on GitHub: https://github.com/shreyastouih-ctrl

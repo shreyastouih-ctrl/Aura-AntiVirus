@@ -4,6 +4,10 @@
 # Exits non-zero if any expectation fails, so it works as a CI gate.
 set -uo pipefail
 
+# Keep the harness fully offline and deterministic: no cloud lookups, no updates.
+export AURAAV_NO_CLOUD=1
+export AURAAV_NO_UPDATE=1
+
 BIN="${AURAAV_BIN:-/app/auraav}"
 CORPUS="${CORPUS_DIR:-/tmp/auraav-corpus}"
 GEN="${GENERATE_SH:-/app/generate.sh}"

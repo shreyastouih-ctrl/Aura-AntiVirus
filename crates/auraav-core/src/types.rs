@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::filetype::FileKind;
@@ -17,6 +17,7 @@ pub enum DetectionLayer {
     Similarity,
     Heuristic,
     Behavioral,
+    Cloud,
 }
 
 impl DetectionLayer {
@@ -32,6 +33,7 @@ impl DetectionLayer {
             DetectionLayer::Similarity => "Fuzzy similarity",
             DetectionLayer::Heuristic => "Heuristic",
             DetectionLayer::Behavioral => "Behavioral",
+            DetectionLayer::Cloud => "Cloud (hash)",
         }
     }
 }
@@ -135,6 +137,9 @@ pub struct ScanConfig {
     pub enable_behavioral: bool,
     pub real_time: bool,
     pub scan_external_drives: bool,
+    /// Confirm Suspicious/Malicious verdicts online (SHA-256 only). Only used by
+    /// whole-file scans; in-memory scans never touch the network.
+    pub enable_cloud: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -203,6 +208,20 @@ impl Default for ScanConfig {
                 "**/target/**".to_string(),
                 "**/__pycache__/**".to_string(),
                 "**/.cache/**".to_string(),
+                // Browser profiles are full of minified JS / cached assets that
+                // trip script heuristics; they are not a malware persistence path
+                // worth scanning by default.
+                "**/.config/BraveSoftware/**".to_string(),
+                "**/.config/google-chrome/**".to_string(),
+                "**/.config/chromium/**".to_string(),
+                "**/.config/microsoft-edge/**".to_string(),
+                "**/.config/vivaldi/**".to_string(),
+                "**/.config/opera/**".to_string(),
+                "**/.mozilla/firefox/**".to_string(),
+                "**/AppData/Local/BraveSoftware/**".to_string(),
+                "**/AppData/Local/Google/Chrome/**".to_string(),
+                "**/AppData/Local/Microsoft/Edge/**".to_string(),
+                "**/AppData/Roaming/Mozilla/Firefox/**".to_string(),
             ],
             max_file_size_mb: 512,
             enable_heuristics: true,
@@ -211,6 +230,7 @@ impl Default for ScanConfig {
             enable_behavioral: false,
             real_time: false,
             scan_external_drives: true,
+            enable_cloud: true,
         }
     }
 }

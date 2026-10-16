@@ -51,14 +51,38 @@ jobs:
             dist/windows/*.zip
           if-no-files-found: error
 
+  data-pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build signature data pack
+        run: |
+          tar -czf auraav-data.tar.gz -C data .
+          ls -l auraav-data.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: auraav-data.tar.gz
+          if-no-files-found: error
+
   release:
-    needs: [linux, windows]
+    needs: [linux, windows, data-pack]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: create stable download aliases
+        run: |
+          set -euo pipefail
+          cd artifacts
+          cp linux/auraav-*-linux-amd64.tar.gz auraav-linux-amd64.tar.gz
+          cp linux/*.deb                       auraav-linux-amd64.deb
+          cp linux/*.rpm                       auraav-linux-amd64.rpm
+          cp windows/*.zip                     auraav-win64.zip
+          cp windows/*.msi                     auraav-win64.msi
+          ls -R .
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
